@@ -1,7 +1,12 @@
 const WebSockets = require("ws"),
   Blockchain = require('./blockchain');
 
-const { getLastBlock } = Blockchain;
+const { getLastBlock, isBlockStructureValid } = Blockchain;
+
+/*
+  P2P 네트워크 이기때문에 각 소켓이 서버이자 클라이언트.
+  따라서 코딩을할때 서버와 클라이언트가 둘다 지원되야한다.
+ */
 
 const sockets = [];
 
@@ -53,7 +58,6 @@ const initSocketConnection = (ws) => {
   handleSocketMessage(ws);
   handleSocketError(ws);
 
-  // 소켓이 서버에게(ALL?) 자신의 가장최신의 블록 데이터를 전송
   sendMessage(ws, getLatest());
 };
 
@@ -68,6 +72,7 @@ const parseData = data => {
 };
 
 const handleSocketMessage = ws => {
+  // onmessage -> 서버로부터 데이터 수신하기
   ws.on("message", data => {
     const message = parseData(data);
     if(message === null){
@@ -76,13 +81,37 @@ const handleSocketMessage = ws => {
     console.log(message);
     switch (message.type){
       case GET_LATEST:
-        sendMessage(ws, getLastBlock());
+        // 모든 소켓에게 메세지를 보낸다.
+        sendMessage(ws, responseLatest());
         break;
+      case BLOCKCHAIN_RESPONSE:
+        const receivedBlocks = message.data;
+        if(receivedBlocks === null){
+          break;
+        }
+        handleBlockchainResponse(receivedBlocks);
+        break;
+
     }
   });
 };
 
+const handleBlockchainResponse = receivedBlocks => {
+  if(receivedBlocks.length === 0){
+    console.log("Received blocks have a length of 0");
+    return;
+  }
+  const latestBlockReceived = receivedBlocks[receivedBlocks.length-1];
+  if(!isBlockStructureValid(latestBlockReceived)){
+    console.log("The block structure of the block received is not valid");
+    return;
+  }
+};
+
+// socket.send() -> 서버에 데이터 전송하기
 const sendMessage = (ws, message) => ws.send(JSON.stringify(message));
+
+const responseLatest = () => blockchainResponse([getLastBlock()]);
 
 // 에러 관리법
 const handleSocketError = ws => {
