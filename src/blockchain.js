@@ -20,17 +20,17 @@ const genesisBlock = new Block(
 
 let blockchain = [genesisBlock];
 
-const getLastBlock = () => blockchain[blockchain.length -1];
+const getNewestBlock = () => blockchain[blockchain.length -1];
 
 const getTimestamp = () => new Date().getTime() / 1000;
 
-const getBlockChain = () => blockchain;
+const getBlockchain = () => blockchain;
 
 const createHash = (index, previousHash, timestamp, data) =>
   CryptoJS.SHA256(index + previousHash + timestamp + JSON.stringify(data)).toString();
 
 const createNewBlock = data => {
-  const previousBlock = getLastBlock();
+  const previousBlock = getNewestBlock();
   const newBlockIndex = previousBlock.index + 1;
   const newTimestamp = getTimestamp();
   const newHash = createHash(
@@ -47,6 +47,7 @@ const createNewBlock = data => {
     data
   );
   addBlockToChain(newBlock);
+  require("./p2p").broadcastNewBlock();
   return newBlock;
 };
 
@@ -98,7 +99,7 @@ const isChainValid = (candidateChain) => {
 };
 
 const replaceChain = (candidateChain) => {
-  if(isChainValid(candidateChain) && candidateChain.length > getBlockChain().length){
+  if(isChainValid(candidateChain) && candidateChain.length > getBlockchain().length){
     blockchain = candidateChain;
     return true;
   }else {
@@ -107,8 +108,8 @@ const replaceChain = (candidateChain) => {
 };
 
 const addBlockToChain = (candidateBlock) => {
-  if(isBlockValid(candidateBlock, getLastBlock())){
-    getBlockChain().push(candidateBlock);
+  if(isBlockValid(candidateBlock, getNewestBlock())){
+    getBlockchain().push(candidateBlock);
     return true;
   } else {
     return false;
@@ -116,8 +117,10 @@ const addBlockToChain = (candidateBlock) => {
 };
 
 module.exports = {
-  getLastBlock,
-  getBlockChain,
+  getNewestBlock,
+  getBlockchain,
   createNewBlock,
-  isBlockStructureValid
+  isBlockStructureValid,
+  addBlockToChain,
+  replaceChain,
 };

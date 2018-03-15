@@ -19,7 +19,7 @@ null, 1520838250756, "This is the genesis!!");
 
 var blockchain = [genesisBlock];
 
-var getLastBlock = function getLastBlock() {
+var getNewestBlock = function getNewestBlock() {
   return blockchain[blockchain.length - 1];
 };
 
@@ -27,7 +27,7 @@ var getTimestamp = function getTimestamp() {
   return new Date().getTime() / 1000;
 };
 
-var getBlockChain = function getBlockChain() {
+var getBlockchain = function getBlockchain() {
   return blockchain;
 };
 
@@ -36,7 +36,7 @@ var createHash = function createHash(index, previousHash, timestamp, data) {
 };
 
 var createNewBlock = function createNewBlock(data) {
-  var previousBlock = getLastBlock();
+  var previousBlock = getNewestBlock();
   var newBlockIndex = previousBlock.index + 1;
   var newTimestamp = getTimestamp();
   var newHash = createHash(newBlockIndex, previousBlock.hash, newTimestamp, data);
@@ -91,7 +91,7 @@ var isChainValid = function isChainValid(candidateChain) {
 };
 
 var replaceChain = function replaceChain(candidateChain) {
-  if (isChainValid(candidateChain) && candidateChain.length > getBlockChain().length) {
+  if (isChainValid(candidateChain) && candidateChain.length > getBlockchain().length) {
     blockchain = candidateChain;
     return true;
   } else {
@@ -100,8 +100,8 @@ var replaceChain = function replaceChain(candidateChain) {
 };
 
 var addBlockToChain = function addBlockToChain(candidateBlock) {
-  if (isNewBlockValid(candidateBlock, getLastBlock())) {
-    getBlockChain().push(candidateBlock);
+  if (isNewBlockValid(candidateBlock, getNewestBlock())) {
+    getBlockchain().push(candidateBlock);
     return true;
   } else {
     return false;
