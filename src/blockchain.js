@@ -1,6 +1,9 @@
 const CryptoJS = require("crypto-js"),
   hexToBinary = require("hex-to-binary");
 
+const BLOCK_GENERATION_INTERVAL = 10;
+const DIFFICULTY_ADJUSMENT_INTERVAL = 10;
+
 class Block {
   constructor(index, hash, previousHash, timestamp, data, difficulty, nonce) {
     this.index = index;
@@ -17,7 +20,7 @@ const genesisBlock = new Block(
   0,
   'b9d40a0cfdb3a57fcf7ae8d521faedadde588ba31d7e428071a98fadd32ac81d', // index + previosHash + timestamp + data
   null,
-  1520838250756,
+  1522138741,
   "This is the genesis!!",
   0,
   0
@@ -27,7 +30,7 @@ let blockchain = [genesisBlock];
 
 const getNewestBlock = () => blockchain[blockchain.length -1];
 
-const getTimestamp = () => new Date().getTime() / 1000;
+const getTimestamp = () => Math.round(new Date().getTime() / 1000);
 
 const getBlockchain = () => blockchain;
 
@@ -38,17 +41,43 @@ const createNewBlock = data => {
   const previousBlock = getNewestBlock();
   const newBlockIndex = previousBlock.index + 1;
   const newTimestamp = getTimestamp();
+  const difficulty = findDifficulty();
 
   const newBlock = findBlock(
     newBlockIndex,
     previousBlock.hash,
     newTimestamp,
     data,
-    20
+    difficulty
   );
   addBlockToChain(newBlock);
   require("./p2p").broadcastNewBlock();
   return newBlock;
+};
+
+const findDifficulty = () => {
+  const newestBlock = getNewestBlock();
+  if(newestBlock.index % DIFFICULTY_ADJUSMENT_INTERVAL === 0 && newestBlock.index !== 0){
+    // calculate new difficulty
+    return calculateNewDifficulty(newestBlock, getBlockchain());
+  } else {
+    return newestBlock.difficulty;
+  }
+};
+
+const calculateNewDifficulty = (newestBlock, blockchain) => {
+  const lastCalculatedBlock = blockchain[blockchain.length - DIFFICULTY_ADJUSMENT_INTERVAL];
+  const timeExpected = BLOCK_GENERATION_INTERVAL * DIFFICULTY_ADJUSMENT_INTERVAL;
+  const timeTaken = newestBlock.timestamp - lastCalculatedBlock.timestamp;
+
+  //  예상한 시간보다 블록을 채굴하는데 걸리는시간이 2배넘게 짧다면 난이도 증가.
+  if(timeTaken < timeExpected/2){
+    return lastCalculatedBlock.difficulty+1;
+  }else if(timeTaken > timeExpected*2){ // 채굴이 예상시간보다 2배 더걸리면 난이도 감소.
+    return lastCalculatedBlock.difficulty-1;
+  }else{
+    return lastCalculatedBlock.difficulty;
+  }
 };
 
 const findBlock = (index, previousHash, timestamp, data, difficulty) => {
@@ -81,7 +110,14 @@ const hashMatchesDifficulty = (hash, difficulty) => {
 
 };
 
-const getBlocksHash = (block) => createHash(block.index, block.previousHash, block.timestamp, block.data);
+const getBlocksHash = (block) => createHash(block.index, block.previousHash, block.timestamp, block.data, block.difficulty, block.nonce);
+
+const isTimeStampValid = (newBlock, oldBlock) => {
+  return (
+    oldBlock.timestamp - 60 < newBlock.timestamp &&
+    newBlock.timestamp - 60 < getTimestamp()
+  );
+};
 
 const isBlockValid = (candidateBlock, latestBlock) => {
   if(!isBlockStructureValid(candidateBlock)){
@@ -94,6 +130,9 @@ const isBlockValid = (candidateBlock, latestBlock) => {
     return false;
   }else if(getBlocksHash(candidateBlock) !== candidateBlock.hash){
     console.log('The hash of this block is invalid');
+    return false;
+  }else if(!isTimeStampValid(candidateBlock, latestBlock)){
+    console.log('The timestamp of this block is dodgy');
     return false;
   }
 
