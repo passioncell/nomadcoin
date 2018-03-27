@@ -1,4 +1,5 @@
-const WebSockets = require("ws"),
+const
+  WebSockets = require("ws"),
   Blockchain = require('./blockchain');
 
 const {
@@ -52,7 +53,7 @@ const startP2PServer = (server) => {
   // 새로운 소켓이 소켓서버에 연결됬을시 실행.
   wsServer.on("connection", (ws) => {
     console.log(`new socket connected. - ${ws}`);
-    //소켓 초기화 및 소켓리스트에 추가
+    //소켓 초기화 및 소켓리스트에 추가 (소켓==피어)
     initSocketConnection(ws);
   });
 
@@ -69,9 +70,9 @@ const initSocketConnection = (ws) => {
 
 // 메세지 관리법
 const parseData = data => {
-  try{
+  try {
     return JSON.parse(data);
-  }catch(e){
+  } catch (e) {
     console.error(e);
     return null;
   }
@@ -81,11 +82,11 @@ const handleSocketMessage = ws => {
   // onmessage -> 서버로부터 데이터 수신하기
   ws.on("message", data => {
     const message = parseData(data);
-    if(message === null){
+    if (message === null) {
       return;
     }
     console.log(message);
-    switch (message.type){
+    switch (message.type) {
       case GET_LATEST:
         sendMessage(ws, responseLatest());
         break;
@@ -94,7 +95,7 @@ const handleSocketMessage = ws => {
         break;
       case BLOCKCHAIN_RESPONSE:
         const receivedBlocks = message.data;
-        if(receivedBlocks === null){
+        if (receivedBlocks === null) {
           break;
         }
         handleBlockchainResponse(receivedBlocks);
@@ -105,24 +106,24 @@ const handleSocketMessage = ws => {
 };
 
 const handleBlockchainResponse = receivedBlocks => {
-  if(receivedBlocks.length === 0){
+  if (receivedBlocks.length === 0) {
     console.log("Received blocks have a length of 0");
     return;
   }
-  const latestBlockReceived = receivedBlocks[receivedBlocks.length-1];
-  if(!isBlockStructureValid(latestBlockReceived)){
+  const latestBlockReceived = receivedBlocks[receivedBlocks.length - 1];
+  if (!isBlockStructureValid(latestBlockReceived)) {
     console.log("The block structure of the block received is not valid");
     return;
   }
   const newestBlock = getNewestBlock();
-  if(latestBlockReceived.index > newestBlock.index){ // 내블록보다 앞서있음.
-    if(newestBlock.hash === latestBlockReceived.previousHash){
-      if(addBlockToChain(latestBlockReceived)){ // 새로운 블록을 성공적으로 추가하면
+  if (latestBlockReceived.index > newestBlock.index) { // 내블록보다 앞서있음.
+    if (newestBlock.hash === latestBlockReceived.previousHash) {
+      if (addBlockToChain(latestBlockReceived)) { // 새로운 블록을 성공적으로 추가하면
         broadcastNewBlock(); // 브로드캐스트
       }
-    }else if(receivedBlocks.length === 1){
+    } else if (receivedBlocks.length === 1) {
       sendMessageToAll(getAll());
-    }else{
+    } else {
       replaceChain(receivedBlocks);
     }
   }
@@ -133,8 +134,10 @@ const sendMessage = (ws, message) => ws.send(JSON.stringify(message));
 
 const sendMessageToAll = message => sockets.forEach(ws => sendMessage(ws, message));
 
+// 피어의 가장 최근 블록 반환
 const responseLatest = () => blockchainResponse([getNewestBlock()]);
 
+// 피어의 모든블록(체인) 반환
 const responseAll = () => blockchainResponse(getBlockchain());
 
 const broadcastNewBlock = () => sendMessageToAll(responseLatest());
